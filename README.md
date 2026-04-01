@@ -24,13 +24,13 @@ they already have.
 Add the marketplace in Claude Code:
 
 ```bash
-/plugin marketplace add github/copilot-plugin-cc
+/plugin marketplace add wagnersza/copilot-plugin-cc
 ```
 
 Install the plugin:
 
 ```bash
-/plugin install copilot@github-copilot
+/plugin install wagnersza@github-copilot
 ```
 
 Reload plugins:
