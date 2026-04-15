@@ -88,6 +88,44 @@ describe("buildPermissionHandler", () => {
     assert.deepEqual(result, { kind: "denied" });
   });
 
+  // --- Copilot CLI actual tool names ---
+
+  it("'edit' (Copilot CLI tool) denied when gate OFF, non-interactive", async () => {
+    const handler = buildPermissionHandler({ gateEnabled: false, interactive: false });
+    const result = await handler({ tool: "edit", path: "/tmp/file.js" });
+    assert.deepEqual(result, { kind: "denied" });
+  });
+
+  it("'bash' (Copilot CLI tool) denied when gate OFF, non-interactive", async () => {
+    const handler = buildPermissionHandler({ gateEnabled: false, interactive: false });
+    const result = await handler({ tool: "bash" });
+    assert.deepEqual(result, { kind: "denied" });
+  });
+
+  it("'edit' approved when gate ON", async () => {
+    const handler = buildPermissionHandler({ gateEnabled: true, interactive: false });
+    const result = await handler({ tool: "edit", path: "/tmp/file.js" });
+    assert.deepEqual(result, { kind: "approved" });
+  });
+
+  it("'bash' approved when gate ON", async () => {
+    const handler = buildPermissionHandler({ gateEnabled: true, interactive: false });
+    const result = await handler({ tool: "bash" });
+    assert.deepEqual(result, { kind: "approved" });
+  });
+
+  it("'view' (Copilot CLI read tool) always approved", async () => {
+    const handler = buildPermissionHandler({ gateEnabled: false, interactive: false });
+    const result = await handler({ tool: "view" });
+    assert.deepEqual(result, { kind: "approved" });
+  });
+
+  it("'glob' (Copilot CLI read tool) always approved", async () => {
+    const handler = buildPermissionHandler({ gateEnabled: false, interactive: false });
+    const result = await handler({ tool: "glob" });
+    assert.deepEqual(result, { kind: "approved" });
+  });
+
   // --- Default options ---
 
   it("defaults to gate OFF, non-interactive — denies writes", async () => {

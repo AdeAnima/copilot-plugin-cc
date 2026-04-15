@@ -1,3 +1,6 @@
+import fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
 import { binaryAvailable, runCommand } from "./process.mjs";
 
 const SESSION_ID_ENV = "COPILOT_COMPANION_SESSION_ID";
@@ -67,7 +70,11 @@ export async function shutdownClient() {
   }
 }
 
+// Copilot CLI 1.0.x tool names that can modify files or execute commands.
+// "edit" writes/modifies files, "bash" runs shell commands.
+// Also include hypothetical future/alternate names for safety.
 const WRITE_TOOLS = new Set([
+  "edit", "bash",
   "file_write", "file_edit", "file_delete",
   "shell_execute", "command_execute",
 ]);
@@ -149,11 +156,12 @@ export async function runPrompt(session, prompt, options = {}) {
         });
         break;
       case "tool.execution_complete": {
+        const toolName = event.data.toolName ?? event.data.name ?? "unknown";
         const status = event.data.success ? "completed" : "failed";
         onProgress?.({
-          message: `Tool ${event.data.toolName} ${status}.`,
+          message: `Tool ${toolName} ${status}.`,
           phase: "running",
-          stderrMessage: `Tool ${event.data.toolName} ${status}`,
+          stderrMessage: `Tool ${toolName} ${status}`,
           logTitle: null,
           logBody: null
         });
@@ -192,10 +200,18 @@ export function getCopilotAvailability(cwd) {
 }
 
 export function getSessionRuntimeStatus(env = process.env) {
+  let sdkVersion = "unknown";
+  try {
+    const thisDir = path.dirname(fileURLToPath(import.meta.url));
+    const sdkPkgPath = path.resolve(thisDir, "../../../../node_modules/@github/copilot-sdk/package.json");
+    sdkVersion = JSON.parse(fs.readFileSync(sdkPkgPath, "utf8")).version;
+  } catch {
+    // Fall back — SDK version not readable
+  }
   return {
     mode: "sdk",
     label: "SDK managed",
-    detail: "Copilot CLI process managed by @github/copilot-sdk."
+    detail: `Copilot CLI process managed by @github/copilot-sdk@${sdkVersion}.`
   };
 }
 
@@ -207,6 +223,13 @@ export function getCopilotLoginStatus(cwd) {
   return { available: true, loggedIn: true, detail: "assumed authenticated" };
 }
 
+function stripCodeFences(text) {
+  const trimmed = text.trim();
+  const match = trimmed.match(/^```(?:json)?\s*\n([\s\S]*?)\n\s*```$/);
+  if (match) return match[1].trim();
+  return trimmed;
+}
+
 export function parseStructuredOutput(rawOutput, fallback = {}) {
   if (!rawOutput) {
     return {
@@ -216,8 +239,9 @@ export function parseStructuredOutput(rawOutput, fallback = {}) {
       ...fallback
     };
   }
+  const cleaned = stripCodeFences(rawOutput);
   try {
-    return { parsed: JSON.parse(rawOutput), parseError: null, rawOutput, ...fallback };
+    return { parsed: JSON.parse(cleaned), parseError: null, rawOutput, ...fallback };
   } catch (error) {
     return { parsed: null, parseError: error.message, rawOutput, ...fallback };
   }
