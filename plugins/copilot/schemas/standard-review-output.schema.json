@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["summary", "findings"],
+  "properties": {
+    "summary": { "type": "string", "description": "Brief overall assessment" },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["severity", "title", "body"],
+        "properties": {
+          "severity": { "enum": ["critical", "high", "medium", "low"] },
+          "title": { "type": "string" },
+          "body": { "type": "string" },
+          "file": { "type": "string" },
+          "line_start": { "type": "integer" },
+          "line_end": { "type": "integer" },
+          "recommendation": { "type": "string" }
+        }
+      }
+    },
+    "suggestions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["title", "body"],
+        "properties": {
+          "title": { "type": "string" },
+          "body": { "type": "string" },
+          "file": { "type": "string" }
+        }
+      }
+    }
+  }
+}

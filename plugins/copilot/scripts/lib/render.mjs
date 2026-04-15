@@ -285,6 +285,50 @@ export function renderReviewResult(parsedResult, meta) {
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
+export function renderStandardReviewResult(data, meta) {
+  const lines = [
+    `# Copilot ${meta.reviewLabel ?? "Review"}`,
+    "",
+    `Target: ${meta.targetLabel ?? ""}`,
+    "",
+    data.summary,
+    ""
+  ];
+
+  const findings = [...(data.findings ?? [])].sort(
+    (left, right) => severityRank(left.severity) - severityRank(right.severity)
+  );
+
+  if (findings.length === 0) {
+    lines.push("No findings.");
+  } else {
+    lines.push("Findings:");
+    for (const finding of findings) {
+      const lineSuffix = formatLineRange(finding);
+      const location = finding.file ? ` (${finding.file}${lineSuffix})` : "";
+      lines.push(`- [${finding.severity}] ${finding.title}${location}`);
+      lines.push(`  ${finding.body}`);
+      if (finding.recommendation) {
+        lines.push(`  Recommendation: ${finding.recommendation}`);
+      }
+    }
+  }
+
+  const suggestions = data.suggestions ?? [];
+  if (suggestions.length > 0) {
+    lines.push("", "Suggestions:");
+    for (const suggestion of suggestions) {
+      const location = suggestion.file ? ` (${suggestion.file})` : "";
+      lines.push(`- ${suggestion.title}${location}`);
+      lines.push(`  ${suggestion.body}`);
+    }
+  }
+
+  appendReasoningSection(lines, meta.reasoningSummary ?? []);
+
+  return `${lines.join("\n").trimEnd()}\n`;
+}
+
 export function renderNativeReviewResult(result, meta) {
   const stdout = result.stdout.trim();
   const stderr = result.stderr.trim();

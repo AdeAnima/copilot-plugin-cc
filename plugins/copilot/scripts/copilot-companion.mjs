@@ -51,6 +51,7 @@ import {
 import { resolveWorkspaceRoot } from "./lib/workspace.mjs";
 import {
   renderReviewResult,
+  renderStandardReviewResult,
   renderStoredJobResult,
   renderCancelReport,
   renderJobStatusReport,
@@ -58,6 +59,7 @@ import {
   renderStatusReport,
   renderTaskResult
 } from "./lib/render.mjs";
+import { parseStructuredReview } from "./lib/review-parser.mjs";
 
 const ROOT_DIR = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const REVIEW_SCHEMA = path.join(ROOT_DIR, "schemas", "review-output.schema.json");
@@ -311,20 +313,22 @@ async function executeReviewRun(request) {
     prompt = buildAdversarialReviewPrompt(context, focusText);
     isStructured = true;
   } else {
-    // Regular review: plain prompt with diff context
-    prompt = [
-      `Please review the following ${target.label} diff and provide a code review.`,
-      focusText ? `Focus on: ${focusText}` : "",
-      "",
-      context.content
-    ].filter(Boolean).join("\n");
+    // Standard review: structured JSON output via template
+    const promptTemplate = loadPromptTemplate(ROOT_DIR, "standard-review");
+    const reviewContext = focusText
+      ? `${context.content}\n\nFocus on: ${focusText}`
+      : context.content;
+    prompt = interpolateTemplate(promptTemplate, {
+      TARGET_LABEL: target.label,
+      REVIEW_INPUT: reviewContext
+    });
   }
 
   const session = await createSession({
     model: request.model,
     systemMessage: isStructured
       ? "You are Copilot performing an adversarial software review. Return your findings as JSON matching the provided schema."
-      : "You are Copilot performing a code review. Provide clear, actionable feedback.",
+      : "You are Copilot performing a code review. Return your findings as JSON matching the provided schema.",
     gateEnabled: true, // reviews are read-only, always safe
     interactive: false,
   });
@@ -371,26 +375,47 @@ async function executeReviewRun(request) {
     };
   }
 
-  // Plain review result
+  // Standard review result — attempt structured JSON parse, fall back to raw
+  const parsed = parseStructuredReview(rawOutput);
   const payload = {
     review: reviewName,
     target,
     sessionId: result.sessionId,
+    context: {
+      repoRoot: context.repoRoot,
+      branch: context.branch,
+      summary: context.summary
+    },
     copilot: {
       status: rawOutput ? 0 : 1,
       stdout: rawOutput,
       reasoning: result.reasoning
-    }
+    },
+    result: parsed.structured ? parsed.data : null,
+    rawOutput: parsed.structured ? null : rawOutput
   };
+
+  let rendered;
+  if (parsed.structured) {
+    rendered = renderStandardReviewResult(parsed.data, {
+      reviewLabel: reviewName,
+      targetLabel: context.target.label,
+      reasoningSummary: result.reasoning ? [result.reasoning] : []
+    });
+  } else {
+    rendered = parsed.raw
+      ? (parsed.raw.endsWith("\n") ? parsed.raw : `${parsed.raw}\n`)
+      : `# Copilot ${reviewName}\n\nNo output returned.\n`;
+  }
+
   return {
     exitStatus: rawOutput ? 0 : 1,
     sessionId: result.sessionId,
     payload,
-    rendered: renderReviewResult(
-      { parsed: null, parseError: null, rawOutput },
-      { reviewLabel: reviewName, targetLabel: context.target.label, reasoningSummary: [] }
-    ),
-    summary: firstMeaningfulLine(rawOutput, `${reviewName} completed.`),
+    rendered,
+    summary: parsed.structured
+      ? (parsed.data.summary ?? `${reviewName} completed.`)
+      : firstMeaningfulLine(rawOutput, `${reviewName} completed.`),
     jobTitle: `Copilot ${reviewName}`,
     jobClass: "review",
     targetLabel: context.target.label
