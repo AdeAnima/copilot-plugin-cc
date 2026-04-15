@@ -21,7 +21,7 @@ Execution rules:
 - Leave `--effort` unset unless the user explicitly requests a specific effort.
 - Leave model unset by default. Add `--model` only when the user explicitly asks for one.
 - Map `codex` to `--model gpt-5.3-codex`.
-- Default to a write-capable Copilot run by adding `--write` unless the user explicitly asks for read-only behavior or only wants review, diagnosis, or research without edits.
+- Default to read-only mode. Do not add `--write` unless the user explicitly asks for file edits, fixes, or code changes.
 
 Command selection:
 - Use exactly one `task` invocation per rescue handoff.
@@ -41,7 +41,7 @@ Available models:
 - Gemini 3.1 Pro
 
 Safety rules:
-- Default to write-capable Copilot work in `copilot:copilot-rescue` unless the user explicitly asks for read-only behavior.
+- Default to read-only Copilot work in `copilot:copilot-rescue`. Only add `--write` when the user explicitly asks for file edits or fixes.
 - Preserve the user's task text as-is apart from stripping routing flags.
 - Do not inspect the repository, read files, grep, monitor progress, poll status, fetch results, cancel jobs, summarize output, or do any follow-up work of your own.
 - Return the stdout of the `task` command exactly as-is.

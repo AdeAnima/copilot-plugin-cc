@@ -1,6 +1,6 @@
 ---
 description: Delegate investigation, an explicit fix request, or follow-up rescue work to the Copilot rescue subagent
-argument-hint: "[--background|--wait] [--resume|--fresh] [--model <model>] [--effort <none|minimal|low|medium|high|xhigh>] [what Copilot should investigate, solve, or continue]"
+argument-hint: "[--background|--wait] [--write] [--resume|--fresh] [--model <model>] [--effort <none|minimal|low|medium|high|xhigh>] [what Copilot should investigate, solve, or continue]"
 context: fork
 allowed-tools: Bash(node:*), AskUserQuestion
 ---
@@ -42,6 +42,7 @@ Operating rules:
 - Return the Copilot companion stdout verbatim to the user.
 - Do not paraphrase, summarize, rewrite, or add commentary before or after it.
 - Do not ask the subagent to inspect files, monitor progress, poll `/copilot:status`, fetch `/copilot:result`, call `/copilot:cancel`, summarize output, or do follow-up work of its own.
+- Leave `--write` out by default. Only forward `--write` to `task` when the user's request explicitly asks for file edits, fixes, or code changes.
 - Leave `--effort` unset unless the user explicitly asks for a specific reasoning effort.
 - Leave the model unset unless the user explicitly asks for one. If they ask for `spark`, map it to `gpt-5.3-codex`.
 - Leave `--resume` and `--fresh` in the forwarded request. The subagent handles that routing when it builds the `task` command.
