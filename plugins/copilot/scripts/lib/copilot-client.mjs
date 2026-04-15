@@ -67,15 +67,53 @@ export async function shutdownClient() {
   }
 }
 
+const WRITE_TOOLS = new Set([
+  "file_write", "file_edit", "file_delete",
+  "shell_execute", "command_execute",
+]);
+
+export function buildPermissionHandler({ gateEnabled = false, interactive = false } = {}) {
+  return async (request) => {
+    // Read operations are always safe
+    if (!WRITE_TOOLS.has(request.tool)) {
+      return { kind: "approved" };
+    }
+    // Gate ON = auto-approve (gate catches bad changes on stop)
+    if (gateEnabled) {
+      return { kind: "approved" };
+    }
+    // Gate OFF, non-interactive = deny writes
+    if (!interactive) {
+      return { kind: "denied" };
+    }
+    // Gate OFF, interactive = prompt user via stdin
+    const description = `Copilot wants to ${request.tool}: ${request.path || "(no path)"}`;
+    process.stderr.write(`\n⚠️  ${description}\nAllow? (y/n): `);
+    const response = await new Promise((resolve) => {
+      process.stdin.setEncoding("utf8");
+      process.stdin.once("data", (data) => resolve(data.trim().toLowerCase()));
+    });
+    return response === "y" || response === "yes"
+      ? { kind: "approved" }
+      : { kind: "denied" };
+  };
+}
+
 export async function createSession(options = {}) {
   const client = await ensureClient();
+  const permissionHandler = options.onPermissionRequest
+    || buildPermissionHandler({
+      gateEnabled: options.gateEnabled ?? false,
+      interactive: options.interactive ?? false,
+    });
+
   return client.createSession({
     model: options.model || undefined,
     streaming: true,
     sessionId: options.sessionId || undefined,
     systemMessage: options.systemMessage || undefined,
     tools: options.tools || undefined,
-    onPermissionRequest: async () => ({ kind: "approved" }),
+    onPermissionRequest: permissionHandler,
     ...(options.reasoningEffort ? { reasoningEffort: options.reasoningEffort } : {})
   });
 }
