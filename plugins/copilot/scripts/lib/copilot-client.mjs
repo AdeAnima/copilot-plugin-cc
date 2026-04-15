@@ -129,6 +129,7 @@ export async function runPrompt(session, prompt, options = {}) {
   const { onProgress } = options;
   const chunks = [];
   const reasoning = [];
+  const toolNames = new Map();
 
   session.on((event) => {
     const eventType = event.type?.value ?? event.type;
@@ -147,6 +148,9 @@ export async function runPrompt(session, prompt, options = {}) {
         reasoning.push(event.data.deltaContent || "");
         break;
       case "tool.execution_start":
+        if (event.data.toolCallId) {
+          toolNames.set(event.data.toolCallId, event.data.toolName);
+        }
         onProgress?.({
           message: `Running tool: ${event.data.toolName}.`,
           phase: "investigating",
@@ -156,7 +160,7 @@ export async function runPrompt(session, prompt, options = {}) {
         });
         break;
       case "tool.execution_complete": {
-        const toolName = event.data.toolName ?? event.data.name ?? "unknown";
+        const toolName = toolNames.get(event.data.toolCallId) ?? "unknown";
         const status = event.data.success ? "completed" : "failed";
         onProgress?.({
           message: `Tool ${toolName} ${status}.`,

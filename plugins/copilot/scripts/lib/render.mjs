@@ -34,8 +34,8 @@ function validateReviewResultShape(data) {
   if (!Array.isArray(data.findings)) {
     return "Missing array `findings`.";
   }
-  if (!Array.isArray(data.next_steps)) {
-    return "Missing array `next_steps`.";
+  if (data.next_steps != null && !Array.isArray(data.next_steps)) {
+    return "Expected array for `next_steps`.";
   }
   return null;
 }
