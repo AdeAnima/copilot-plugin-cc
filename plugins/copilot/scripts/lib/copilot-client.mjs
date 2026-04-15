@@ -6,6 +6,16 @@ const DEFAULT_CONTINUE_PROMPT =
 const TASK_SESSION_PREFIX = "Copilot Companion Task";
 
 let _client = null;
+let _copilotClientFn = null;
+
+// Test hooks — for injecting fake SDK loaders in tests only
+export function _resetClient() {
+  _client = null;
+}
+
+export function _setCopilotClientFn(fn) {
+  _copilotClientFn = fn;
+}
 
 function shorten(text, limit = 72) {
   const normalized = String(text ?? "").trim().replace(/\s+/g, " ");
@@ -15,16 +25,37 @@ function shorten(text, limit = 72) {
 }
 
 async function getCopilotClient() {
-  // Lazy import to allow tests to run without the real SDK installed
-  const { CopilotClient } = await import("@github/copilot-sdk");
-  return CopilotClient;
+  const loader = _copilotClientFn ?? (async () => {
+    const { CopilotClient } = await import("@github/copilot-sdk");
+    return CopilotClient;
+  });
+
+  try {
+    return await loader();
+  } catch (err) {
+    if (err.code === "ERR_MODULE_NOT_FOUND" || err.message?.includes("Cannot find module")) {
+      throw new Error(
+        "@github/copilot-sdk is not installed. Run /copilot:setup to fix this."
+      );
+    }
+    throw new Error(
+      "Failed to load @github/copilot-sdk — possible version mismatch. Run /copilot:setup to check."
+    );
+  }
 }
 
 export async function ensureClient() {
   if (!_client) {
     const CopilotClient = await getCopilotClient();
-    _client = new CopilotClient();
-    await _client.start();
+    const instance = new CopilotClient();
+    try {
+      await instance.start();
+    } catch (err) {
+      throw new Error(
+        `Failed to start @github/copilot-sdk — possible version mismatch. Run /copilot:setup to check. (${err.message})`
+      );
+    }
+    _client = instance;
   }
   return _client;
 }
