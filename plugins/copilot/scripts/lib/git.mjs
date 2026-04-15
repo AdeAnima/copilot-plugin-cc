@@ -77,13 +77,24 @@ export function resolveReviewTarget(cwd, options = {}) {
   const requestedScope = options.scope ?? "auto";
   const baseRef = options.base ?? null;
   const state = getWorkingTreeState(cwd);
-  const supportedScopes = new Set(["auto", "working-tree", "branch"]);
+  const supportedScopes = new Set(["auto", "working-tree", "branch", "staged"]);
 
   if (baseRef) {
     return {
       mode: "branch",
       label: `branch diff against ${baseRef}`,
       baseRef,
+      explicit: true
+    };
+  }
+
+  if (requestedScope === "staged") {
+    if (state.staged.length === 0) {
+      throw new Error("Nothing staged — stage changes with `git add` first.");
+    }
+    return {
+      mode: "staged",
+      label: "staged changes",
       explicit: true
     };
   }
@@ -168,6 +179,16 @@ function collectWorkingTreeContext(cwd, state) {
   };
 }
 
+function collectStagedContext(cwd, state) {
+  const stagedDiff = gitChecked(cwd, ["diff", "--cached", "--binary", "--no-ext-diff", "--submodule=diff"]).stdout;
+
+  return {
+    mode: "staged",
+    summary: `Reviewing ${state.staged.length} staged file(s).`,
+    content: formatSection("Staged Diff", stagedDiff)
+  };
+}
+
 function collectBranchContext(cwd, baseRef) {
   const mergeBase = gitChecked(cwd, ["merge-base", "HEAD", baseRef]).stdout.trim();
   const commitRange = `${mergeBase}..HEAD`;
@@ -193,7 +214,9 @@ export function collectReviewContext(cwd, target) {
   const currentBranch = getCurrentBranch(cwd);
   let details;
 
-  if (target.mode === "working-tree") {
+  if (target.mode === "staged") {
+    details = collectStagedContext(repoRoot, state);
+  } else if (target.mode === "working-tree") {
     details = collectWorkingTreeContext(repoRoot, state);
   } else {
     details = collectBranchContext(repoRoot, target.baseRef);

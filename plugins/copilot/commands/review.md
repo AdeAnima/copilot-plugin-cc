@@ -1,6 +1,6 @@
 ---
 description: Run a Copilot code review against local git state
-argument-hint: '[--wait|--background] [--base <ref>] [--scope auto|working-tree|branch]'
+argument-hint: '[--wait|--background] [--base <ref>] [--scope auto|working-tree|branch|staged]'
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), AskUserQuestion
 ---
@@ -36,7 +36,8 @@ Argument handling:
 - Do not strip `--wait` or `--background` yourself.
 - Do not add extra review instructions or rewrite the user's intent.
 - The companion script parses `--wait` and `--background`, but Claude Code's `Bash(..., run_in_background: true)` is what actually detaches the run.
-- `/copilot:review` is native-review only. It does not support staged-only review, unstaged-only review, or extra focus text.
+- `/copilot:review` supports `--scope staged` to review only the staged changes (`git diff --cached`).
+- It does not support unstaged-only review or extra focus text.
 - If the user needs custom review instructions or more adversarial framing, they should use `/copilot:adversarial-review`.
 
 Foreground flow:

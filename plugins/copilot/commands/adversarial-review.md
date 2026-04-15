@@ -1,6 +1,6 @@
 ---
 description: Run a Copilot review that challenges the implementation approach and design choices
-argument-hint: '[--wait|--background] [--base <ref>] [--scope auto|working-tree|branch] [focus ...]'
+argument-hint: '[--wait|--background] [--base <ref>] [--scope auto|working-tree|branch|staged] [focus ...]'
 disable-model-invocation: true
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), AskUserQuestion
 ---
@@ -40,8 +40,8 @@ Argument handling:
 - Do not weaken the adversarial framing or rewrite the user's focus text.
 - The companion script parses `--wait` and `--background`, but Claude Code's `Bash(..., run_in_background: true)` is what actually detaches the run.
 - `/copilot:adversarial-review` uses the same review target selection as `/copilot:review`.
-- It supports working-tree review, branch review, and `--base <ref>`.
-- It does not support `--scope staged` or `--scope unstaged`.
+- It supports working-tree review, branch review, staged review (`--scope staged`), and `--base <ref>`.
+- It does not support `--scope unstaged`.
 - Unlike `/copilot:review`, it can still take extra focus text after the flags.
 
 Foreground flow:
