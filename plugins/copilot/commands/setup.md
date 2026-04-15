@@ -35,3 +35,4 @@ Output rules:
 - Present the final setup output to the user.
 - If installation was skipped, present the original setup output.
 - If Copilot CLI is installed but not authenticated, preserve the guidance to run `!copilot login`.
+- The output includes a review gate status line: `Review gate: [ON/OFF] (enable with /copilot:setup --enable-review-gate)`.

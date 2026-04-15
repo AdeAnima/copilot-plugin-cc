@@ -322,20 +322,22 @@ export function renderTaskResult(parsedResult, meta) {
   return `${message}\n`;
 }
 
-export function renderStatusReport(report) {
+export function renderStatusReport(snapshot, options = {}) {
+  const gateStatus = options.gateEnabled ? "🟢 ON" : "⚪ OFF";
   const lines = [
     "# Copilot Status",
     "",
-    `Session runtime: ${report.sessionRuntime.label}`,
-    `Review gate: ${report.config.stopReviewGate ? "enabled" : "disabled"}`,
+    `**Review Gate:** ${gateStatus}`,
+    "",
+    `Session runtime: ${snapshot.sessionRuntime.label}`,
     ""
   ];
 
-  if (report.running.length > 0) {
-    appendActiveJobsTable(lines, report.running);
+  if (snapshot.running.length > 0) {
+    appendActiveJobsTable(lines, snapshot.running);
     lines.push("");
     lines.push("Live details:");
-    for (const job of report.running) {
+    for (const job of snapshot.running) {
       pushJobDetails(lines, job, {
         showElapsed: true,
         showLog: true
@@ -344,29 +346,29 @@ export function renderStatusReport(report) {
     lines.push("");
   }
 
-  if (report.latestFinished) {
+  if (snapshot.latestFinished) {
     lines.push("Latest finished:");
-    pushJobDetails(lines, report.latestFinished, {
+    pushJobDetails(lines, snapshot.latestFinished, {
       showDuration: true,
-      showLog: report.latestFinished.status === "failed"
+      showLog: snapshot.latestFinished.status === "failed"
     });
     lines.push("");
   }
 
-  if (report.recent.length > 0) {
+  if (snapshot.recent.length > 0) {
     lines.push("Recent jobs:");
-    for (const job of report.recent) {
+    for (const job of snapshot.recent) {
       pushJobDetails(lines, job, {
         showDuration: true,
         showLog: job.status === "failed"
       });
     }
     lines.push("");
-  } else if (report.running.length === 0 && !report.latestFinished) {
+  } else if (snapshot.running.length === 0 && !snapshot.latestFinished) {
     lines.push("No jobs recorded yet.", "");
   }
 
-  if (report.needsReview) {
+  if (snapshot.needsReview) {
     lines.push("The stop-time review gate is enabled.");
     lines.push("Ending the session will trigger a fresh Copilot adversarial review and block if it finds issues.");
   }

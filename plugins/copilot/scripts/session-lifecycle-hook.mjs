@@ -58,6 +58,19 @@ function cleanupSessionJobs(cwd, sessionId) {
 function handleSessionStart(input) {
   appendEnvVar(SESSION_ID_ENV, input.session_id);
   appendEnvVar(PLUGIN_DATA_ENV, process.env[PLUGIN_DATA_ENV]);
+
+  // Reset review gate to off at session start
+  const cwd = input.cwd || process.cwd();
+  try {
+    const workspaceRoot = resolveWorkspaceRoot(cwd);
+    const state = loadState(workspaceRoot);
+    if (state.config?.stopReviewGate) {
+      state.config.stopReviewGate = false;
+      saveState(workspaceRoot, state);
+    }
+  } catch {
+    // Non-fatal — gate just stays in whatever state it was
+  }
 }
 
 function handleSessionEnd(input) {

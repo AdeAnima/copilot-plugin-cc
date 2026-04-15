@@ -253,7 +253,7 @@ function ensureCopilotReady(cwd) {
 }
 
 function renderStatusPayload(report, asJson) {
-  return asJson ? report : renderStatusReport(report);
+  return asJson ? report : renderStatusReport(report, { gateEnabled: report.config?.stopReviewGate ?? false });
 }
 
 function isActiveJobStatus(status) {
@@ -324,7 +324,9 @@ async function executeReviewRun(request) {
     model: request.model,
     systemMessage: isStructured
       ? "You are Copilot performing an adversarial software review. Return your findings as JSON matching the provided schema."
-      : "You are Copilot performing a code review. Provide clear, actionable feedback."
+      : "You are Copilot performing a code review. Provide clear, actionable feedback.",
+    gateEnabled: true, // reviews are read-only, always safe
+    interactive: false,
   });
 
   const result = await runPrompt(session, prompt, { onProgress: request.onProgress });
@@ -421,9 +423,13 @@ async function executeTaskRun(request) {
     throw new Error("Provide a prompt, a prompt file, piped stdin, or use --resume-last.");
   }
 
+  const stateConfig = getConfig(workspaceRoot);
+  const gateEnabled = stateConfig?.stopReviewGate ?? false;
   const session = await createSession({
     model: request.model,
-    sessionId
+    sessionId,
+    gateEnabled,
+    interactive: !request.background,
   });
 
   const promptText = request.prompt || DEFAULT_CONTINUE_PROMPT;
