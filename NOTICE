@@ -1,4 +1,12 @@
-Copyright 2024 GitHub, Inc.
+This product includes software originally developed by OpenAI
+(https://github.com/openai/codex-plugin-cc), adapted for GitHub Copilot
+by Wagner Souza (https://github.com/wagnersza/copilot-plugin-cc), and
+further modified by Marten Westphal (https://github.com/AdeAnima/copilot-plugin-cc).
+
+Original copyright notices:
+
+    Copyright 2026 OpenAI
+    Copyright 2024 GitHub, Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

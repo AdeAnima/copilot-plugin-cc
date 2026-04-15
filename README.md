@@ -17,8 +17,8 @@ Use GitHub Copilot CLI from within Claude Code for code review, adversarial revi
 Add the marketplace and install the plugin:
 
 ```bash
-/plugin marketplace add wagnersza/copilot-plugin-cc
-/plugin install copilot@wagnersza
+/plugin marketplace add AdeAnima/copilot-plugin-cc
+/plugin install copilot@AdeAnima
 /reload-plugins
 ```
 
@@ -205,10 +205,10 @@ model = "gpt-5.4"
 model_reasoning_effort = "xhigh"
 ```
 
-## Changes from Upstream
+## Lineage
 
-This fork of [wagnersza/copilot-plugin-cc](https://github.com/wagnersza/copilot-plugin-cc) adds stability and safety improvements. See [CHANGELOG.md](./CHANGELOG.md) for the full list of changes.
+This plugin is a fork of [wagnersza/copilot-plugin-cc](https://github.com/wagnersza/copilot-plugin-cc), which is itself adapted from OpenAI's [codex-plugin-cc](https://github.com/openai/codex-plugin-cc). This fork adds stability and safety improvements. See [CHANGELOG.md](./CHANGELOG.md) for the full list of changes.
 
 ## License
 
-Apache-2.0
+Apache-2.0 — see [NOTICE](./NOTICE) for attribution.
