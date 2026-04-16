@@ -62,3 +62,42 @@ export function detectClaudeConfig(cwd) {
     mentionsWorktrees: /worktree/i.test(lower)
   };
 }
+
+export function detectHooks(cwd) {
+  const candidates = [
+    { type: "husky", rel: ".husky/pre-commit" },
+    { type: "pre-commit", rel: ".pre-commit-config.yaml" },
+    { type: "lefthook", rel: "lefthook.yml" },
+    { type: "lefthook", rel: "lefthook.yaml" },
+    { type: "git", rel: ".git/hooks/pre-commit" }
+  ];
+  let preCommit = { present: false };
+  for (const cand of candidates) {
+    const p = path.join(cwd, cand.rel);
+    if (fs.existsSync(p)) {
+      preCommit = { present: true, type: cand.type, path: p };
+      break;
+    }
+  }
+  const stopHookPath = path.join(cwd, ".claude", "hooks", "stop.json");
+  const sessionHookPath = path.join(cwd, ".claude", "hooks", "session-start.json");
+  return {
+    preCommit,
+    stopHook: { present: fs.existsSync(stopHookPath) },
+    sessionStartHook: { present: fs.existsSync(sessionHookPath) }
+  };
+}
+
+export function detectCiConfig(cwd) {
+  const wfDir = path.join(cwd, ".github", "workflows");
+  if (!fs.existsSync(wfDir)) return { githubActions: false, detectedWorkflows: [] };
+  let files = [];
+  try {
+    files = fs.readdirSync(wfDir)
+      .filter((f) => f.endsWith(".yml") || f.endsWith(".yaml"))
+      .map((f) => path.join(".github", "workflows", f));
+  } catch {
+    files = [];
+  }
+  return { githubActions: files.length > 0, detectedWorkflows: files };
+}

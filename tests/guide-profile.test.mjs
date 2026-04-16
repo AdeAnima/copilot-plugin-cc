@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { resolveMode, computeSizeTier, detectClaudeConfig } from "../plugins/copilot/scripts/lib/guide-profile.mjs";
+import { execSync } from "node:child_process";
+import { resolveMode, computeSizeTier, detectClaudeConfig, detectHooks, detectCiConfig } from "../plugins/copilot/scripts/lib/guide-profile.mjs";
 
 describe("resolveMode", () => {
   it("returns migration when codex plugin detected", () => {
@@ -121,5 +122,70 @@ describe("detectClaudeConfig", () => {
     fs.chmodSync(p, 0o444);
     const c = detectClaudeConfig(dir);
     assert.equal(c.claudeMdWritable, false);
+  });
+});
+
+describe("detectHooks", () => {
+  let dir;
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "guide-hooks-"));
+    execSync("git init -q", { cwd: dir });
+  });
+  afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
+
+  it("reports no hooks when absent", () => {
+    const h = detectHooks(dir);
+    assert.equal(h.preCommit.present, false);
+  });
+
+  it("detects husky pre-commit", () => {
+    fs.mkdirSync(path.join(dir, ".husky"), { recursive: true });
+    fs.writeFileSync(path.join(dir, ".husky", "pre-commit"), "#!/bin/sh\n");
+    const h = detectHooks(dir);
+    assert.equal(h.preCommit.present, true);
+    assert.equal(h.preCommit.type, "husky");
+  });
+
+  it("detects pre-commit framework", () => {
+    fs.writeFileSync(path.join(dir, ".pre-commit-config.yaml"), "repos: []\n");
+    const h = detectHooks(dir);
+    assert.equal(h.preCommit.present, true);
+    assert.equal(h.preCommit.type, "pre-commit");
+  });
+
+  it("detects lefthook", () => {
+    fs.writeFileSync(path.join(dir, "lefthook.yml"), "pre-commit:\n");
+    const h = detectHooks(dir);
+    assert.equal(h.preCommit.present, true);
+    assert.equal(h.preCommit.type, "lefthook");
+  });
+
+  it("detects raw git pre-commit hook", () => {
+    fs.writeFileSync(path.join(dir, ".git/hooks/pre-commit"), "#!/bin/sh\n");
+    const h = detectHooks(dir);
+    assert.equal(h.preCommit.present, true);
+    assert.equal(h.preCommit.type, "git");
+  });
+});
+
+describe("detectCiConfig", () => {
+  let dir;
+  beforeEach(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), "guide-ci-")); });
+  afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
+
+  it("reports none when absent", () => {
+    const ci = detectCiConfig(dir);
+    assert.equal(ci.githubActions, false);
+    assert.deepEqual(ci.detectedWorkflows, []);
+  });
+
+  it("detects GitHub Actions workflow files", () => {
+    const wf = path.join(dir, ".github", "workflows");
+    fs.mkdirSync(wf, { recursive: true });
+    fs.writeFileSync(path.join(wf, "ci.yml"), "name: ci\n");
+    fs.writeFileSync(path.join(wf, "release.yml"), "name: release\n");
+    const ci = detectCiConfig(dir);
+    assert.equal(ci.githubActions, true);
+    assert.equal(ci.detectedWorkflows.length, 2);
   });
 });
