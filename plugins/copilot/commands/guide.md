@@ -39,11 +39,11 @@ Cost: ~$0.018  Time: 12s
 ```
 Reviews use GPT-5 (different from Claude — second opinion)
 Manual command: /copilot:review
-Disable plugin:  /copilot:setup --disable
+Disable plugin:  /plugin disable github-copilot (via Claude Code)
 Typical cost:    ~$0.02 per review (varies with diff size)
 ```
 
-3. If `profile.repo.sizeTier` is `"large"` or `"huge"`, announce: "Large repo detected — auto-applying summary mode for diffs >500 lines. Change later with `/copilot:setup --diff-threshold N`." Note this in the final summary as an applied change.
+3. If `profile.repo.sizeTier` is `"large"` or `"huge"`, surface a notice: "Large repo detected — reviews will auto-fall-back to self-collect mode for diffs over the 256KB / 2-file threshold. This is built in and needs no config." Note in the final summary.
 
 4. If `profile.claudeConfig.claudeMdHasManagedMarker` is true OR `profile.claudeConfig.claudeMdExists && !profile.claudeConfig.claudeMdWritable`, use AskUserQuestion exactly once:
    - Title: "Your CLAUDE.md is centrally managed / read-only. Where should I put Copilot guidance?"
@@ -120,7 +120,7 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/copilot-companion.mjs" status --json
 
 4. For each picked item: dry-run → confirm → apply. Any write still shows the exact diff.
 
-5. Final summary includes: changes applied, log location (`~/.copilot/logs/`), changelog link for plugin updates, and optional "Schedule next audit in 30 days?" prompt (no-op if user declines — we don't have scheduling yet, just surface the reminder option).
+5. Final summary includes: changes applied, log location (`$CLAUDE_PLUGIN_DATA/state/<workspace>/jobs/` or system tmpdir fallback), changelog link for plugin updates, and optional "Schedule next audit in 30 days?" prompt (no-op if user declines — we don't have scheduling yet, just surface the reminder option).
 
 ## Error Handling
 
@@ -143,9 +143,9 @@ Applied:
 Reference:
   - Model:    GPT-5 (~$0.02/review, varies with diff size)
   - Manual:   /copilot:review
-  - Disable:  /copilot:setup --disable
+  - Disable:  /plugin disable github-copilot (via Claude Code)
   - Findings: printed to terminal (pipe with --json for scripts)
-  - Logs:     ~/.copilot/logs/
+  - Logs:     $CLAUDE_PLUGIN_DATA/state/<workspace>/jobs/ (or system tmpdir if env var not set)
 
 Next: want to run /copilot:review on your current staged changes? [y/N]
 ```
