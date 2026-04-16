@@ -1,5 +1,7 @@
 Please review the following {{TARGET_LABEL}} diff and provide a structured code review.
 
+{{COLLECTION_GUIDANCE}}
+
 <review_input>
 {{REVIEW_INPUT}}
 </review_input>

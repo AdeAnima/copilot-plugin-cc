@@ -243,6 +243,7 @@ function buildAdversarialReviewPrompt(context, focusText) {
     REVIEW_KIND: "Adversarial Review",
     TARGET_LABEL: context.target.label,
     USER_FOCUS: focusText || "No extra focus provided.",
+    COLLECTION_GUIDANCE: context.collectionGuidance || "Use the repository context below as primary evidence.",
     REVIEW_INPUT: context.content
   });
 }
@@ -320,6 +321,7 @@ async function executeReviewRun(request) {
       : context.content;
     prompt = interpolateTemplate(promptTemplate, {
       TARGET_LABEL: target.label,
+      COLLECTION_GUIDANCE: context.collectionGuidance || "Use the repository context below as primary evidence.",
       REVIEW_INPUT: reviewContext
     });
   }
