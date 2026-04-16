@@ -316,6 +316,52 @@ function buildCollectionGuidance(options = {}) {
   return "The repository context below is a lightweight summary. Inspect the target diff yourself with read-only git commands before finalizing findings.";
 }
 
+function percentile(sortedValues, p) {
+  if (sortedValues.length === 0) return 0;
+  const idx = Math.min(sortedValues.length - 1, Math.floor((p / 100) * sortedValues.length));
+  return sortedValues[idx];
+}
+
+function median(sortedValues) {
+  if (sortedValues.length === 0) return 0;
+  const mid = Math.floor(sortedValues.length / 2);
+  if (sortedValues.length % 2 === 0) {
+    return Math.floor((sortedValues[mid - 1] + sortedValues[mid]) / 2);
+  }
+  return sortedValues[mid];
+}
+
+export function sampleRecentCommits(cwd, n) {
+  const limit = Math.max(1, Math.floor(Number(n) || 20));
+  const log = git(cwd, ["log", `-n${limit}`, "--format=%H"]);
+  if (log.status !== 0) {
+    return { count: 0, changesetMedianFiles: 0, changesetMedianLines: 0, changesetP95Files: 0, changesetP95Lines: 0 };
+  }
+  const shas = log.stdout.trim().split("\n").filter(Boolean);
+  const fileCounts = [];
+  const lineCounts = [];
+  for (const sha of shas) {
+    const stat = git(cwd, ["show", "--stat", "--format=", sha]);
+    if (stat.status !== 0) continue;
+    const lines = stat.stdout.trim().split("\n").filter(Boolean);
+    const summary = lines[lines.length - 1] || "";
+    const filesMatch = summary.match(/(\d+) files? changed/);
+    const insMatch = summary.match(/(\d+) insertion/);
+    const delMatch = summary.match(/(\d+) deletion/);
+    fileCounts.push(filesMatch ? Number(filesMatch[1]) : 0);
+    lineCounts.push((insMatch ? Number(insMatch[1]) : 0) + (delMatch ? Number(delMatch[1]) : 0));
+  }
+  const sortedFiles = [...fileCounts].sort((a, b) => a - b);
+  const sortedLines = [...lineCounts].sort((a, b) => a - b);
+  return {
+    count: shas.length,
+    changesetMedianFiles: median(sortedFiles),
+    changesetMedianLines: median(sortedLines),
+    changesetP95Files: percentile(sortedFiles, 95),
+    changesetP95Lines: percentile(sortedLines, 95)
+  };
+}
+
 export function collectReviewContext(cwd, target, options = {}) {
   const repoRoot = getRepoRoot(cwd);
   const state = getWorkingTreeState(cwd);
