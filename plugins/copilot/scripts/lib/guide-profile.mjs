@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import { execSync } from "node:child_process";
 
 import { getConfig, listJobs } from "./state.mjs";
+import { ensureGitRepository, detectDefaultBranch, sampleRecentCommits } from "./git.mjs";
 
 export const AUDIT_JOBS_THRESHOLD = 5;
 
@@ -127,4 +129,49 @@ export function detectOtherPlugins(options = {}) {
   return {
     codexPluginDetected: fs.existsSync(codexDir)
   };
+}
+
+function countRepoFiles(cwd) {
+  try {
+    const out = execSync("git ls-files | wc -l", { cwd, stdio: ["ignore", "pipe", "ignore"] }).toString();
+    return Number(out.trim()) || 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function buildGuideProfile(opts = {}) {
+  const cwd = opts.cwd ?? process.cwd();
+  const workspaceRoot = opts.workspaceRoot ?? cwd;
+  const home = opts.home ?? process.env.HOME ?? "";
+
+  let isGitRepo = true;
+  try { ensureGitRepository(cwd); } catch { isGitRepo = false; }
+
+  const fileCount = isGitRepo ? countRepoFiles(cwd) : 0;
+  let defaultBranch = null;
+  try { defaultBranch = isGitRepo ? detectDefaultBranch(cwd) : null; } catch { defaultBranch = null; }
+  const recentCommits = isGitRepo ? sampleRecentCommits(cwd, 20) : { count: 0, changesetMedianFiles: 0, changesetMedianLines: 0, changesetP95Files: 0, changesetP95Lines: 0 };
+
+  const profile = {
+    environment: {
+      node: process.version,
+      platform: process.platform
+    },
+    repo: {
+      isGitRepo,
+      fileCount,
+      sizeTier: computeSizeTier(fileCount),
+      defaultBranch,
+      recentCommits
+    },
+    claudeConfig: detectClaudeConfig(cwd),
+    hooks: detectHooks(cwd),
+    ciConfig: detectCiConfig(cwd),
+    pluginState: detectPluginState(workspaceRoot),
+    otherPlugins: detectOtherPlugins({ home })
+  };
+
+  profile.recommendedMode = resolveMode(profile);
+  return profile;
 }

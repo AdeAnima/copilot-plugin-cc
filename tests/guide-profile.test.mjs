@@ -6,6 +6,7 @@ import os from "node:os";
 import { execSync } from "node:child_process";
 import { resolveMode, computeSizeTier, detectClaudeConfig, detectHooks, detectCiConfig } from "../plugins/copilot/scripts/lib/guide-profile.mjs";
 import { detectPluginState, detectOtherPlugins } from "../plugins/copilot/scripts/lib/guide-profile.mjs";
+import { buildGuideProfile } from "../plugins/copilot/scripts/lib/guide-profile.mjs";
 
 describe("resolveMode", () => {
   it("returns migration when codex plugin detected", () => {
@@ -221,6 +222,50 @@ describe("detectOtherPlugins", () => {
       fs.mkdirSync(path.join(home, ".claude", "plugins", "codex-plugin-cc"), { recursive: true });
       const p = detectOtherPlugins({ home });
       assert.equal(p.codexPluginDetected, true);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("buildGuideProfile", () => {
+  let dir;
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "guide-profile-"));
+    execSync("git init -q", { cwd: dir });
+    execSync('git config user.email "t@t.io"', { cwd: dir });
+    execSync('git config user.name "T"', { cwd: dir });
+    fs.writeFileSync(path.join(dir, "a.txt"), "x\n");
+    execSync("git add -A && git commit -q -m init", { cwd: dir });
+  });
+  afterEach(() => { fs.rmSync(dir, { recursive: true, force: true }); });
+
+  it("returns structured profile with recommendedMode", () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "guide-home-"));
+    try {
+      const profile = buildGuideProfile({ cwd: dir, workspaceRoot: dir, home });
+      assert.ok(profile.environment);
+      assert.ok(profile.repo);
+      assert.equal(profile.repo.isGitRepo, true);
+      assert.ok(typeof profile.repo.fileCount === "number");
+      assert.ok(typeof profile.repo.sizeTier === "string");
+      assert.ok(profile.claudeConfig);
+      assert.ok(profile.hooks);
+      assert.ok(profile.ciConfig);
+      assert.ok(profile.pluginState);
+      assert.ok(profile.otherPlugins);
+      assert.equal(profile.recommendedMode, "onboarding");
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("sets recommendedMode=migration when codex plugin present", () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "guide-home-"));
+    try {
+      fs.mkdirSync(path.join(home, ".claude", "plugins", "codex-plugin-cc"), { recursive: true });
+      const profile = buildGuideProfile({ cwd: dir, workspaceRoot: dir, home });
+      assert.equal(profile.recommendedMode, "migration");
     } finally {
       fs.rmSync(home, { recursive: true, force: true });
     }
