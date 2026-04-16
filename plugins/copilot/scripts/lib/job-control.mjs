@@ -196,6 +196,10 @@ export function readStoredJob(workspaceRoot, jobId) {
 }
 
 function matchJobReference(jobs, reference, predicate = () => true) {
+  if (reference != null && typeof reference !== "string") {
+    throw new TypeError(`matchJobReference: "reference" must be a string or nullish, got ${typeof reference}`);
+  }
+
   const filtered = jobs.filter(predicate);
   if (!reference) {
     return filtered[0] ?? null;

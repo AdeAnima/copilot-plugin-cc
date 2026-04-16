@@ -62,6 +62,18 @@ export function loadState(cwd) {
   }
 
   try {
+    const stat = fs.statSync(stateFile);
+    if (stat.mode & 0o004) {
+      process.stderr.write(
+        `[copilot] WARNING: config file ${stateFile} is world-readable (mode ${(stat.mode & 0o777).toString(8)}). ` +
+        `This file may contain session tokens. Consider running: chmod o-r '${stateFile}'\n`
+      );
+    }
+  } catch {
+    // Ignore stat errors — proceed with loading
+  }
+
+  try {
     const parsed = JSON.parse(fs.readFileSync(stateFile, "utf8"));
     return {
       ...defaultState(),
