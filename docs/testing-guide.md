@@ -163,6 +163,40 @@ These require an active Claude Code session with the plugin loaded.
 
 ---
 
+## Part 3.5: Guide Command (`/copilot:guide`)
+
+Tests for the interactive onboarding/migration/audit command.
+
+### Script-level (CLI)
+
+| # | Test | Command | Expected |
+|---|------|---------|----------|
+| GU.1 | Profile JSON builds | `node plugins/copilot/scripts/copilot-companion.mjs guide --json` | Valid JSON with `environment`, `repo`, `claudeConfig`, `hooks`, `ciConfig`, `pluginState`, `otherPlugins`, `recommendedMode`, `jobSummary` |
+| GU.2 | Mode routing — fresh | From a repo with no Copilot usage, no codex plugin, gate OFF | `recommendedMode === "onboarding"` |
+| GU.3 | Mode routing — audit | After 6+ jobs run or gate enabled or CLAUDE.md mentions Copilot | `recommendedMode === "audit"` |
+| GU.4 | Mode routing — migration | With `~/.claude/plugins/codex-plugin-cc/` directory present | `recommendedMode === "migration"` |
+| GU.5 | Non-git repo | `cd /tmp && node .../copilot-companion.mjs guide --json` | `repo.isGitRepo === false` |
+| GU.6 | Recent-commit sampling | On a repo with >1 commit | `repo.recentCommits.count > 0` with median/p95 values |
+
+### Slash command
+
+| # | Test | Method | Expected |
+|---|------|--------|----------|
+| GU.7 | Invoke via Skill tool | Skill(`copilot:guide`) | Runs interactive flow, routes to correct mode |
+| GU.8 | Forced onboarding override | Skill(`copilot:guide`, "--onboarding") | Runs onboarding flow even if audit signals present |
+| GU.9 | Dry-run before write | During any mode, when asked to write a file | Diff shown, confirm required before write |
+| GU.10 | Read-only CLAUDE.md fallback | With a read-only or `# Managed by` CLAUDE.md | Offers `CLAUDE.local.md` / cheatsheet fallback, does not attempt write |
+| GU.11 | Final summary present | At end of every flow | Summary lists applied changes + model + manual command + disable command + findings location |
+
+### Setup integration
+
+| # | Test | Method | Expected |
+|---|------|--------|----------|
+| GU.12 | Setup offers guide | After `/copilot:setup` on a fresh install | AskUserQuestion prompt offers `/copilot:guide` |
+| GU.13 | Setup skips guide offer for returning users | After `/copilot:setup` with gate ON or jobs > 0 | No guide offer shown |
+
+---
+
 ## Part 4: Diff Size Gating
 
 Tests that large diffs fall back to summary mode instead of blowing up context.
