@@ -125,8 +125,10 @@ export async function createSession(options = {}) {
   });
 }
 
+const DEFAULT_SEND_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes; SDK defaults to 60s which is too short for tool-heavy reviews
+
 export async function runPrompt(session, prompt, options = {}) {
-  const { onProgress } = options;
+  const { onProgress, timeoutMs = DEFAULT_SEND_TIMEOUT_MS } = options;
   const chunks = [];
   const reasoning = [];
   const toolNames = new Map();
@@ -185,7 +187,7 @@ export async function runPrompt(session, prompt, options = {}) {
     }
   });
 
-  const response = await session.sendAndWait({ prompt });
+  const response = await session.sendAndWait({ prompt }, timeoutMs);
   const content = response?.data?.content ?? chunks.join("");
 
   return {
