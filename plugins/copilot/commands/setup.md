@@ -36,3 +36,17 @@ Output rules:
 - If installation was skipped, present the original setup output.
 - If Copilot CLI is installed but not authenticated, preserve the guidance to run `!copilot login`.
 - The output includes a review gate status line: `Review gate: [ON/OFF] (enable with /copilot:setup --enable-review-gate)`.
+
+## Offer the guide (optional)
+
+After presenting the setup output, check if this is a fresh install:
+
+- Condition: the setup JSON shows `nextSteps` present AND `reviewGateEnabled === false` AND no `copilot-companion.mjs guide` has been run in this session.
+- Action: use `AskUserQuestion` exactly once to offer the guide:
+  - Title: "First time using this plugin?"
+  - Options:
+    - `Yes — run /copilot:guide now (Recommended)`
+    - `No — I'll explore on my own`
+- If "Yes": invoke the Skill tool with `copilot:guide` (no arguments).
+- If "No": end silently.
+- If the condition does not match (e.g. returning user, gate already ON, etc.), do NOT show the offer.
