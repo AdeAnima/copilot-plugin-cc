@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { resolveMode } from "../plugins/copilot/scripts/lib/guide-profile.mjs";
+import { resolveMode, computeSizeTier } from "../plugins/copilot/scripts/lib/guide-profile.mjs";
 
 describe("resolveMode", () => {
   it("returns migration when codex plugin detected", () => {
@@ -56,4 +56,16 @@ describe("resolveMode", () => {
     });
     assert.equal(mode, "migration");
   });
+});
+
+describe("computeSizeTier", () => {
+  it("tiny < 50", () => { assert.equal(computeSizeTier(0), "tiny"); });
+  it("tiny at 49", () => { assert.equal(computeSizeTier(49), "tiny"); });
+  it("small at 50", () => { assert.equal(computeSizeTier(50), "small"); });
+  it("small at 499", () => { assert.equal(computeSizeTier(499), "small"); });
+  it("medium at 500", () => { assert.equal(computeSizeTier(500), "medium"); });
+  it("medium at 4999", () => { assert.equal(computeSizeTier(4999), "medium"); });
+  it("large at 5000", () => { assert.equal(computeSizeTier(5000), "large"); });
+  it("large at 49999", () => { assert.equal(computeSizeTier(49999), "large"); });
+  it("huge at 50000", () => { assert.equal(computeSizeTier(50000), "huge"); });
 });
