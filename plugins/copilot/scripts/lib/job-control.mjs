@@ -311,3 +311,33 @@ export function resolveCancelableJob(cwd, reference) {
 
   throw new Error("No active Copilot jobs to cancel.");
 }
+
+export function listJobsSummary(workspaceRoot, sinceMs) {
+  const cutoff = Date.now() - Math.max(0, Number(sinceMs) || 0);
+  let jobs = [];
+  try {
+    jobs = listJobs(workspaceRoot);
+  } catch {
+    jobs = [];
+  }
+  const byKind = {};
+  const durations = [];
+  let totalJobs = 0;
+  for (const job of jobs) {
+    const startedMs = job.startedAt ? Date.parse(job.startedAt) : 0;
+    if (Number.isNaN(startedMs) || startedMs < cutoff) continue;
+    totalJobs += 1;
+    const kind = job.kind ?? "unknown";
+    byKind[kind] = (byKind[kind] ?? 0) + 1;
+    if (job.completedAt) {
+      const completedMs = Date.parse(job.completedAt);
+      if (!Number.isNaN(completedMs) && completedMs >= startedMs) {
+        durations.push(completedMs - startedMs);
+      }
+    }
+  }
+  const avgDurationMs = durations.length
+    ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+    : 0;
+  return { totalJobs, byKind, avgDurationMs };
+}
