@@ -5,6 +5,7 @@ import path from "node:path";
 import os from "node:os";
 import { execSync } from "node:child_process";
 import { resolveMode, computeSizeTier, detectClaudeConfig, detectHooks, detectCiConfig } from "../plugins/copilot/scripts/lib/guide-profile.mjs";
+import { detectPluginState, detectOtherPlugins } from "../plugins/copilot/scripts/lib/guide-profile.mjs";
 
 describe("resolveMode", () => {
   it("returns migration when codex plugin detected", () => {
@@ -187,5 +188,41 @@ describe("detectCiConfig", () => {
     const ci = detectCiConfig(dir);
     assert.equal(ci.githubActions, true);
     assert.equal(ci.detectedWorkflows.length, 2);
+  });
+});
+
+describe("detectPluginState", () => {
+  it("returns zero-state for a fresh workspace", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "guide-plugin-"));
+    try {
+      const s = detectPluginState(dir);
+      assert.equal(s.reviewGateEnabled, false);
+      assert.equal(s.jobsRun, 0);
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("detectOtherPlugins", () => {
+  it("returns codexPluginDetected=false when codex dir absent", () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "guide-home-"));
+    try {
+      const p = detectOtherPlugins({ home });
+      assert.equal(p.codexPluginDetected, false);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
+  });
+
+  it("detects codex plugin directory", () => {
+    const home = fs.mkdtempSync(path.join(os.tmpdir(), "guide-home-"));
+    try {
+      fs.mkdirSync(path.join(home, ".claude", "plugins", "codex-plugin-cc"), { recursive: true });
+      const p = detectOtherPlugins({ home });
+      assert.equal(p.codexPluginDetected, true);
+    } finally {
+      fs.rmSync(home, { recursive: true, force: true });
+    }
   });
 });

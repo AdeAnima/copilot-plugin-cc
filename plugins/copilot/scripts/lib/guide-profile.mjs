@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { getConfig, listJobs } from "./state.mjs";
+
 export const AUDIT_JOBS_THRESHOLD = 5;
 
 export function resolveMode(profile) {
@@ -100,4 +102,29 @@ export function detectCiConfig(cwd) {
     files = [];
   }
   return { githubActions: files.length > 0, detectedWorkflows: files };
+}
+
+export function detectPluginState(workspaceRoot) {
+  let reviewGateEnabled = false;
+  let jobsRun = 0;
+  try {
+    const config = getConfig(workspaceRoot);
+    reviewGateEnabled = Boolean(config?.stopReviewGate);
+  } catch {
+    reviewGateEnabled = false;
+  }
+  try {
+    jobsRun = listJobs(workspaceRoot).length;
+  } catch {
+    jobsRun = 0;
+  }
+  return { reviewGateEnabled, jobsRun };
+}
+
+export function detectOtherPlugins(options = {}) {
+  const home = options.home ?? process.env.HOME ?? "";
+  const codexDir = path.join(home, ".claude", "plugins", "codex-plugin-cc");
+  return {
+    codexPluginDetected: fs.existsSync(codexDir)
+  };
 }
