@@ -33,11 +33,13 @@ import {
 import {
   buildSingleJobSnapshot,
   buildStatusSnapshot,
+  listJobsSummary,
   readStoredJob,
   resolveCancelableJob,
   resolveResultJob,
   sortJobsNewestFirst
 } from "./lib/job-control.mjs";
+import { buildGuideProfile } from "./lib/guide-profile.mjs";
 import {
   appendLogLine,
   createJobLogFile,
@@ -77,6 +79,7 @@ function printUsage() {
     [
       "Usage:",
       "  node scripts/copilot-companion.mjs setup [--enable-review-gate|--disable-review-gate] [--json]",
+      "  node scripts/copilot-companion.mjs guide [--json]",
       "  node scripts/copilot-companion.mjs review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>]",
       "  node scripts/copilot-companion.mjs adversarial-review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [focus text]",
       "  node scripts/copilot-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model|codex|gemini>] [--effort <none|minimal|low|medium|high|xhigh>] [prompt]",
@@ -235,6 +238,23 @@ function handleSetup(argv) {
 
   const finalReport = buildSetupReport(cwd, actionsTaken);
   outputResult(options.json ? finalReport : renderSetupReport(finalReport), options.json);
+}
+
+const AUDIT_LOOKBACK_MS = 30 * 24 * 60 * 60 * 1000;
+
+function handleGuide(argv) {
+  const { options } = parseCommandInput(argv, {
+    valueOptions: ["cwd"],
+    booleanOptions: ["json"]
+  });
+  const cwd = resolveCommandCwd(options);
+  const workspaceRoot = resolveCommandWorkspace(options);
+  const profile = buildGuideProfile({ cwd, workspaceRoot });
+  const output = {
+    ...profile,
+    jobSummary: listJobsSummary(workspaceRoot, AUDIT_LOOKBACK_MS)
+  };
+  process.stdout.write(JSON.stringify(output, null, 2) + "\n");
 }
 
 function buildAdversarialReviewPrompt(context, focusText) {
@@ -950,6 +970,9 @@ async function main() {
   switch (subcommand) {
     case "setup":
       handleSetup(argv);
+      break;
+    case "guide":
+      handleGuide(argv);
       break;
     case "review":
       await handleReview(argv);
