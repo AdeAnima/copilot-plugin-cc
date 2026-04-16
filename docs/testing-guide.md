@@ -1,6 +1,6 @@
 # Copilot Plugin for Claude Code — Testing Guide
 
-**Version:** 2.0.0-alpha.1
+**Version:** 2.0.0-alpha.2
 **Last updated:** 2026-04-16
 **Repo:** `~/Code/agents/copilot-plugin-cc`
 
@@ -413,6 +413,7 @@ PASS | G.1 | ...
 
 | Issue | Severity | Fixed In | What Changed |
 |-------|----------|----------|-------------|
+| SDK sendAndWait 60s timeout | Medium | alpha.2 | Increased to 5 minutes to prevent timeouts on tool-heavy reviews |
 | WRITE_TOOLS mismatch | Critical | alpha.1 | Added `edit`, `bash` to WRITE_TOOLS set |
 | Tool unknown completed | Low | alpha.1 | Track toolCallId from start → complete events |
 | JSON code fence parsing | Medium | alpha.1 | `stripCodeFences()` in `parseStructuredOutput` |
