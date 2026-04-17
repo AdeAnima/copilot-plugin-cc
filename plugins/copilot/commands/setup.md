@@ -39,38 +39,81 @@ Parse the JSON. Use `profile.recommendedMode` to decide what to do next:
 
 ## Onboarding (inline)
 
-Treat this as a conversation, not a form. Use natural prose between tool calls — don't list steps to the user or narrate what you're about to do. The numbered items below are instructions for you, not a script to read out.
+Treat this as a conversation. **Strict rule: one question per round.** Each question must offer 2 or 3 quick-pick options labeled `a)`, `b)`, `c)` plus a trailing `d) something else` escape hatch. The user can type a single letter to answer. If they pick `d`, ask one follow-up to capture their intent in their own words, then map it to the closest available option (or tell them plainly if it isn't supported).
 
-1. **Open with the context question.** In your own words, ask the user two things (one short message):
-   - What do they already know about this plugin? (Have they used `/copilot:review` before, read the README, or is this fresh?)
-   - How do they picture using it — occasional manual reviews, automatic on every commit, as a second opinion before shipping, or something else?
+Between questions, react to the previous answer in one short sentence — don't summarize, don't preview what's next. Use natural prose; never dump the full menu.
 
-   Wait for their answer before proposing anything. If they say "not sure", give a one-paragraph plain-language explainer: Copilot reviews code using a different model family than Claude (so you get a genuinely independent second opinion), you trigger it with `/copilot:review`, and findings print to the terminal. Then re-ask how they'd like to use it.
+**Mandatory ordering.** Ask in this order. Skip a question entirely if the profile makes it irrelevant (noted inline). Never batch.
 
-2. **Translate their intent into concrete options, conversationally.** Based on what they said, respond with what you'd set up and why — not a menu dump. Example shape: "Given you want a safety net before shipping, I'd suggest A and B. I'd skip C because <reason>. Sound right?" Pull from these building blocks, only mentioning what fits their intent:
+**Q1 — Familiarity.**
+> How familiar are you with this plugin?
+> a) New to it — give me the short version
+> b) Read the README, haven't used it yet
+> c) I've run `/copilot:review` before
+> d) Something else
 
-   - `Add Copilot section to CLAUDE.md` — include when CLAUDE.md is writable and doesn't already mention Copilot. If `profile.claudeConfig.claudeMdHasManagedMarker` is true OR `claudeMdExists && !claudeMdWritable`, offer `CLAUDE.local.md` or a printed cheatsheet instead, and say plainly why (their CLAUDE.md looks centrally managed / read-only).
-   - `Auto-review on git commit` — local hook, only affects them.
-   - `Auto-review on Claude stop hook` — local hook, only affects them.
-   - `Sub-agent self-review pattern` — advanced; mention only if they described an agentic workflow or asked for deeper integration.
-   - `Wire into existing pre-commit hook` — only if `profile.hooks.preCommit.present` is true. Flag that this modifies a shared repo file.
-   - `CI integration guidance` — only if `profile.ciConfig.githubActions` is true.
-   - `Review gate` (enable/disable) — if the user wants auto-review on stop or commit, the session-scoped review gate should typically be ON. Mention this in the same breath, and plan to toggle it with `/copilot:setup --enable-review-gate` as part of the applied changes.
+If `a`: give a one-paragraph plain-language explainer (Copilot reviews code using a different model family than Claude, so you get a genuinely independent second opinion; you trigger it with `/copilot:review`; findings print to the terminal). Then continue to Q2.
 
-   If their intent doesn't match any option, or points at something the plugin can't do, tell them directly and suggest the closest thing that *does* work.
+**Q2 — Primary use case.**
+> How do you picture using it?
+> a) Manual second opinion before I ship
+> b) Automatic on every commit / Claude stop
+> c) Occasional deep adversarial pass
+> d) Something else
 
-   If `profile.repo.sizeTier` is `"large"` or `"huge"`, mention once in passing that reviews auto-fall-back to self-collect mode for diffs over the 256KB / 2-file threshold — built in, no config. Don't belabor it.
+Their pick narrows which hooks and settings to suggest later — remember it.
 
-3. **Ask about the model.** One short question: which model do they want the review to use? Tell them the recommendation plainly: "The latest Codex model (`gpt-5.3-codex`) at `high` reasoning effort is the best pairing with Claude — it's a different family, so you get a real second opinion, and `high` catches issues `medium` misses. `xhigh` goes deeper but takes noticeably longer. Stick with the default, or pick another?" Accept their choice. If they pick something other than codex, don't argue — just note it in the summary.
+**Q3 — Model.**
+> Which model should reviews use by default?
+> a) gpt-5.3-codex @ high effort (Recommended — latest Codex, different family from Claude, best pairing)
+> b) gpt-5.3-codex @ xhigh effort (deeper, noticeably slower)
+> c) Keep Copilot's default (no override)
+> d) Something else
 
-4. **For each change, dry-run diff → confirm → apply.** Show the exact diff, ask `Apply this change? (y/N/edit)`, and only write on `y`. Don't batch confirmations. For pre-commit hooks, default to "append to existing hook" and "non-blocking warning" unless they say otherwise — but ask in the same breath as showing the diff, not as a separate step.
+**Q4 — CLAUDE.md guidance.** Skip if `profile.claudeConfig.mentionsCopilot === true`. If `claudeMdHasManagedMarker` is true OR `claudeMdExists && !claudeMdWritable`, swap option `a` to the fallback below and mention in one sentence why.
+> Want me to add a short Copilot section to your CLAUDE.md?
+> a) Yes — append to CLAUDE.md *(or: `a) Create CLAUDE.local.md instead — your CLAUDE.md is read-only / centrally managed`)*
+> b) No — print me a one-page cheatsheet instead
+> c) Skip
+> d) Something else
 
-5. **Wrap up with a short summary and two scenario comparisons.** Keep the summary to 3-5 lines max — what's set up now, which model is configured, where findings go. Then give exactly two before/after workflow scenarios that match what they chose. No commands, no code blocks — just plain language. Examples of the *shape* (adapt to what they actually set up):
+**Q5 — Automation.** Only ask if Q2 was `b` (automatic) or they explicitly asked for hooks. Otherwise skip.
+> Where should auto-review run?
+> a) On git commit (local hook)
+> b) On Claude stop (local hook)
+> c) Both
+> d) Something else
 
-   - "Shipping a bugfix: *Before* — you'd finish the patch, eyeball the diff, push, and hope CI catches anything you missed. *Now* — the stop hook runs a Copilot pass automatically and flags the missing null check before you even type `git push`."
-   - "Reviewing a teammate's PR locally: *Before* — you'd read the diff and trust your gut. *Now* — you run `/copilot:review --base main` and get a structured second opinion from a different model family in under a minute."
+If `profile.hooks.preCommit.present` is true and they pick `a` or `c`, follow up with one more question:
+> A pre-commit hook already exists. How should I wire in?
+> a) Append — run after your current hook, non-blocking warning (Recommended)
+> b) Append — hard fail if Copilot finds issues
+> c) Don't touch it — skip the commit hook
+> d) Something else
 
-   End with: "Want to try it on your current staged changes?" — if they say yes, run `/copilot:review --scope staged` via the Skill tool.
+**Q6 — Review gate.** Skip if Q5 was skipped entirely.
+> Auto-review usually needs the session review gate ON. Enable it?
+> a) Yes, enable now
+> b) No, leave it off (I'll toggle manually)
+> c) Something else
+
+**Q7 — Advanced extras.** Only ask if `profile.claudeConfig.mentionsSubagents === true` OR `profile.ciConfig.githubActions === true`. Offer only the options whose conditions hold.
+> Anything else to wire up?
+> a) Sub-agent self-review pattern *(only if `mentionsSubagents`)*
+> b) CI integration guidance *(only if `githubActions`)*
+> c) Skip
+> d) Something else
+
+If `profile.repo.sizeTier` is `"large"` or `"huge"`, mention once — in one sentence before Q4 or after Q7, wherever flows best — that reviews auto-fall-back to self-collect mode for diffs over the 256KB / 2-file threshold. Don't make it a question.
+
+**Apply changes.** For every change: show the exact diff, ask `Apply this change? (y/N/edit)`, and only write on `y`. One diff at a time — don't batch confirmations.
+
+**Wrap up.** Short summary (3-5 lines max) of what's set up, which model is configured, and where findings go. Then exactly two before/after workflow scenarios matching what they chose — plain language, no commands, no code blocks. Shape examples:
+
+- "Shipping a bugfix: *Before* — you'd finish the patch, eyeball the diff, push, and hope CI catches anything you missed. *Now* — the stop hook runs a Copilot pass automatically and flags the missing null check before you even type `git push`."
+- "Reviewing a teammate's PR locally: *Before* — you'd read the diff and trust your gut. *Now* — you run `/copilot:review --base main` and get a structured second opinion from a different model family in under a minute."
+
+End with: "Want to try it on your current staged changes?" — if yes, run `/copilot:review --scope staged` via the Skill tool.
 
 ## Status recap (returning users / audit / `--status-only`)
 
