@@ -15,58 +15,43 @@ Parse the returned JSON profile. Use `profile.recommendedMode` to choose flow, u
 ## Universal Rules
 
 - Never silently write to files. Always show a proposed diff first, ask `Apply this change? (y/N/edit)`, and only write on `y`. If `edit`, print the content and let the user paste back a revised version, then apply.
-- End every mode with a final summary block listing: model used (gpt-5.3-codex @ high effort), typical cost, manual command (`/copilot:review`), disable command (`/copilot:setup --disable`), where findings appear (terminal — pipe with `--json` for scripts).
-- Offer a `Try it now?` prompt at the end if the repo has staged changes — runs `/copilot:review --scope staged` via the Skill tool.
+- **Migration and Audit modes** end with the final summary block (see template at the bottom) listing: model (gpt-5.3-codex @ high effort), manual command (`/copilot:review`), disable command (`/plugin disable github-copilot`), where findings appear (terminal — pipe with `--json` for scripts), and logs path.
+- **Onboarding mode** has its own conversational wrap-up (short summary + two before/after scenarios) — do not paste the template block there.
+- Offer a `Try it now?` prompt at the end of every mode if the repo has staged changes — runs `/copilot:review --scope staged` via the Skill tool.
 
 ## Onboarding Mode (`profile.recommendedMode === "onboarding"`)
 
-1. Show this concrete demo block verbatim (mark it as example output):
+Treat this as a conversation, not a form. Use natural prose between tool calls — don't list the steps to the user or narrate what you're about to do. The numbered steps below are instructions for you, not a script to read out.
 
-```
-# example output — not a live run
-$ /copilot:review
-[Reviewing 2 staged files using gpt-5.3-codex @ high effort...]
+1. **Open with the context question.** In your own words, ask the user two things (one short message — don't batch into a rigid AskUserQuestion unless the environment requires it):
+   - What do they already know about this plugin? (Have they used `/copilot:review` before, read the README, or is this fresh?)
+   - How do they picture using it — occasional manual reviews, automatic on every commit, as a second opinion before shipping, or something else?
 
-## Findings
-- [medium] auth.ts:47 — Missing input validation on user.email
-  Recommendation: Validate format before passing to db.query()
+   Wait for their answer before proposing anything. If they say "not sure", give a one-paragraph plain-language explainer: Copilot reviews code using a different model family than Claude (so you get a genuinely independent second opinion), you trigger it with `/copilot:review`, and findings print to the terminal. Then re-ask how they'd like to use it.
 
-Cost: ~$0.018  Time: 12s
-```
+2. **Translate their intent into concrete options, conversationally.** Based on what they said, respond with what you'd set up and why — not a menu dump. Example shape: "Given you want a safety net before shipping, I'd suggest A and B. I'd skip C because <reason>. Sound right?" Pull from these building blocks, only mentioning what fits their intent:
 
-2. Show the cheatsheet (4 lines):
+   - `Add Copilot section to CLAUDE.md` — include when CLAUDE.md is writable and doesn't already mention Copilot. If `profile.claudeConfig.claudeMdHasManagedMarker` is true OR `claudeMdExists && !claudeMdWritable`, offer `CLAUDE.local.md` or a printed cheatsheet instead, and say plainly why (their CLAUDE.md looks centrally managed / read-only).
+   - `Auto-review on git commit` — local hook, only affects them.
+   - `Auto-review on Claude stop hook` — local hook, only affects them.
+   - `Sub-agent self-review pattern` — advanced; mention only if they described an agentic workflow or asked for deeper integration.
+   - `Wire into existing pre-commit hook` — only if `profile.hooks.preCommit.present` is true. Flag that this modifies a shared repo file.
+   - `CI integration guidance` — only if `profile.ciConfig.githubActions` is true.
 
-```
-Reviews use gpt-5.3-codex @ high effort (different from Claude — second opinion)
-Manual command: /copilot:review
-Disable plugin:  /plugin disable github-copilot (via Claude Code)
-Typical cost:    ~$0.02 per review (varies with diff size)
-```
+   If their intent doesn't match any option, or points at something the plugin can't do, tell them directly and suggest the closest thing that *does* work.
 
-3. If `profile.repo.sizeTier` is `"large"` or `"huge"`, surface a notice: "Large repo detected — reviews will auto-fall-back to self-collect mode for diffs over the 256KB / 2-file threshold. This is built in and needs no config." Note in the final summary.
+   If `profile.repo.sizeTier` is `"large"` or `"huge"`, mention once in passing that reviews auto-fall-back to self-collect mode for diffs over the 256KB / 2-file threshold — built in, no config. Don't belabor it.
 
-4. If `profile.claudeConfig.claudeMdHasManagedMarker` is true OR `profile.claudeConfig.claudeMdExists && !profile.claudeConfig.claudeMdWritable`, use AskUserQuestion exactly once:
-   - Title: "Your CLAUDE.md is centrally managed / read-only. Where should I put Copilot guidance?"
-   - Options:
-     - `Create CLAUDE.local.md (only affects you)`
-     - `Print a one-page cheatsheet (Recommended)`
-     - `Skip — I'll remember the commands`
+3. **Ask about the model.** One short question: which model do they want the review to use? Tell them the recommendation plainly: "The latest Codex model (`gpt-5.3-codex`) at `high` reasoning effort is the best pairing with Claude — it's a different family, so you get a real second opinion, and `high` catches issues `medium` misses. `xhigh` goes deeper but takes noticeably longer. Stick with the default, or pick another?" Accept their choice. If they pick something other than codex, don't argue — just note it in the summary.
 
-5. Build the menu based on detection:
-   - Always include: `Add Copilot section to CLAUDE.md` (if writable and not already mentioning Copilot)
-   - Include `Auto-review on git commit` — label `[local — only affects you]`
-   - Include `Auto-review on Claude stop hook` — label `[local — only affects you]`
-   - Include `Sub-agent self-review pattern` — label `[advanced]`
-   - Include `Wire into existing pre-commit hook` — only if `profile.hooks.preCommit.present` is true, label `[modifies shared repo file]`
-   - Include `CI integration guidance` — only if `profile.ciConfig.githubActions` is true
+4. **For each change, dry-run diff → confirm → apply.** Show the exact diff, ask `Apply this change? (y/N/edit)`, and only write on `y`. Don't batch confirmations. For pre-commit hooks, default to "append to existing hook" and "non-blocking warning" unless they say otherwise — but ask in the same breath as showing the diff, not as a separate step.
 
-   Use AskUserQuestion with multi-select semantics (ask each option as y/N). Also offer "Not sure? Tell me what you want to do" — on free text, recommend 1-2 items.
+5. **Wrap up with a short summary and two scenario comparisons.** Keep the summary to 3-5 lines max — what's set up now, which model is configured, where findings go. Then give exactly two before/after workflow scenarios that match what they chose. No commands, no code blocks — just plain language. Examples of the *shape* (adapt to what they actually set up):
 
-6. For each picked item, ask at most 1-2 contextual questions at the moment of decision. For pre-commit: "Append to existing hook, or replace? Non-blocking warning or hard fail?" Default to append + non-blocking.
+   - "Shipping a bugfix: *Before* — you'd finish the patch, eyeball the diff, push, and hope CI catches anything you missed. *Now* — the stop hook runs a Copilot pass automatically and flags the missing null check before you even type `git push`."
+   - "Reviewing a teammate's PR locally: *Before* — you'd read the diff and trust your gut. *Now* — you run `/copilot:review --base main` and get a structured second opinion from a different model family in under a minute."
 
-7. For each change: dry-run diff → confirm → apply.
-
-8. Final summary + "Try it now?" prompt.
+   End with: "Want to try it on your current staged changes?" — if they say yes, run `/copilot:review --scope staged` via the Skill tool.
 
 ## Migration Mode (`profile.recommendedMode === "migration"`)
 
