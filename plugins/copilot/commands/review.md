@@ -1,6 +1,6 @@
 ---
 description: Run a Copilot code review against local git state
-argument-hint: '[--wait|--background] [--base <ref>] [--scope auto|working-tree|branch|staged]'
+argument-hint: '[--wait|--background] [--base <ref>] [--scope auto|working-tree|branch|staged] [--model <model|codex|gemini>] [--effort <low|medium|high|xhigh>]'
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), AskUserQuestion
 ---
 
@@ -38,6 +38,7 @@ Argument handling:
 - `/copilot:review` supports `--scope staged` to review only the staged changes (`git diff --cached`).
 - It does not support unstaged-only review or extra focus text.
 - If the user needs custom review instructions or more adversarial framing, they should use `/copilot:adversarial-review`.
+- Defaults to the `gpt-5.3-codex` model with `high` reasoning effort. Override with `--model` and `--effort` when needed (e.g. `--effort xhigh` for deeper but slower review).
 
 Foreground flow:
 - Run:

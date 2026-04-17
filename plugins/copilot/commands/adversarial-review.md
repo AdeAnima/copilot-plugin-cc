@@ -1,6 +1,6 @@
 ---
 description: Run a Copilot review that challenges the implementation approach and design choices
-argument-hint: '[--wait|--background] [--base <ref>] [--scope auto|working-tree|branch|staged] [focus ...]'
+argument-hint: '[--wait|--background] [--base <ref>] [--scope auto|working-tree|branch|staged] [--model <model|codex|gemini>] [--effort <low|medium|high|xhigh>] [focus ...]'
 allowed-tools: Read, Glob, Grep, Bash(node:*), Bash(git:*), AskUserQuestion
 ---
 
@@ -42,6 +42,7 @@ Argument handling:
 - It supports working-tree review, branch review, staged review (`--scope staged`), and `--base <ref>`.
 - It does not support `--scope unstaged`.
 - Unlike `/copilot:review`, it can still take extra focus text after the flags.
+- Defaults to the `gpt-5.3-codex` model with `high` reasoning effort. Override with `--model` and `--effort` when needed (e.g. `--effort xhigh` for deeper but slower review).
 
 Foreground flow:
 - Run:

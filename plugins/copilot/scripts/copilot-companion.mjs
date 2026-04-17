@@ -72,6 +72,8 @@ const MODEL_ALIASES = new Map([
   ["codex", "gpt-5.3-codex"],
   ["gemini", "gemini-3.1-pro"]
 ]);
+const DEFAULT_REVIEW_MODEL = "gpt-5.3-codex";
+const DEFAULT_REVIEW_EFFORT = "high";
 const STOP_REVIEW_TASK_MARKER = "Run a stop-gate review of the previous Claude turn.";
 
 function printUsage() {
@@ -80,8 +82,8 @@ function printUsage() {
       "Usage:",
       "  node scripts/copilot-companion.mjs setup [--enable-review-gate|--disable-review-gate] [--json]",
       "  node scripts/copilot-companion.mjs guide [--json]",
-      "  node scripts/copilot-companion.mjs review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>]",
-      "  node scripts/copilot-companion.mjs adversarial-review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [focus text]",
+      "  node scripts/copilot-companion.mjs review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--model <model|codex|gemini>] [--effort <low|medium|high|xhigh>]",
+      "  node scripts/copilot-companion.mjs adversarial-review [--wait|--background] [--base <ref>] [--scope <auto|working-tree|branch>] [--model <model|codex|gemini>] [--effort <low|medium|high|xhigh>] [focus text]",
       "  node scripts/copilot-companion.mjs task [--background] [--write] [--resume-last|--resume|--fresh] [--model <model|codex|gemini>] [--effort <none|minimal|low|medium|high|xhigh>] [prompt]",
       "  node scripts/copilot-companion.mjs status [job-id] [--all] [--json]",
       "  node scripts/copilot-companion.mjs result [job-id] [--json]",
@@ -346,8 +348,11 @@ async function executeReviewRun(request) {
     });
   }
 
+  const effectiveModel = normalizeRequestedModel(request.model) ?? DEFAULT_REVIEW_MODEL;
+  const effectiveEffort = normalizeReasoningEffort(request.effort) ?? DEFAULT_REVIEW_EFFORT;
   const session = await createSession({
-    model: request.model,
+    model: effectiveModel,
+    reasoningEffort: effectiveEffort,
     systemMessage: isStructured
       ? "You are Copilot performing an adversarial software review. Return your findings as JSON matching the provided schema."
       : "You are Copilot performing a code review. Return your findings as JSON matching the provided schema.",
@@ -671,7 +676,7 @@ function enqueueBackgroundTask(cwd, job, request) {
 
 async function handleReviewCommand(argv, config) {
   const { options, positionals } = parseCommandInput(argv, {
-    valueOptions: ["base", "scope", "model", "cwd"],
+    valueOptions: ["base", "scope", "model", "effort", "cwd"],
     booleanOptions: ["json", "background", "wait"],
     aliasMap: {
       m: "model"
@@ -703,6 +708,7 @@ async function handleReviewCommand(argv, config) {
         base: options.base,
         scope: options.scope,
         model: options.model,
+        effort: options.effort,
         focusText,
         reviewName: config.reviewName,
         onProgress: progress

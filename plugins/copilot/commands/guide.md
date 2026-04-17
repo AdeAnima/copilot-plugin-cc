@@ -15,7 +15,7 @@ Parse the returned JSON profile. Use `profile.recommendedMode` to choose flow, u
 ## Universal Rules
 
 - Never silently write to files. Always show a proposed diff first, ask `Apply this change? (y/N/edit)`, and only write on `y`. If `edit`, print the content and let the user paste back a revised version, then apply.
-- End every mode with a final summary block listing: model used (GPT-5), typical cost, manual command (`/copilot:review`), disable command (`/copilot:setup --disable`), where findings appear (terminal — pipe with `--json` for scripts).
+- End every mode with a final summary block listing: model used (gpt-5.3-codex @ high effort), typical cost, manual command (`/copilot:review`), disable command (`/copilot:setup --disable`), where findings appear (terminal — pipe with `--json` for scripts).
 - Offer a `Try it now?` prompt at the end if the repo has staged changes — runs `/copilot:review --scope staged` via the Skill tool.
 
 ## Onboarding Mode (`profile.recommendedMode === "onboarding"`)
@@ -25,7 +25,7 @@ Parse the returned JSON profile. Use `profile.recommendedMode` to choose flow, u
 ```
 # example output — not a live run
 $ /copilot:review
-[Reviewing 2 staged files using GPT-5...]
+[Reviewing 2 staged files using gpt-5.3-codex @ high effort...]
 
 ## Findings
 - [medium] auth.ts:47 — Missing input validation on user.email
@@ -37,7 +37,7 @@ Cost: ~$0.018  Time: 12s
 2. Show the cheatsheet (4 lines):
 
 ```
-Reviews use GPT-5 (different from Claude — second opinion)
+Reviews use gpt-5.3-codex @ high effort (different from Claude — second opinion)
 Manual command: /copilot:review
 Disable plugin:  /plugin disable github-copilot (via Claude Code)
 Typical cost:    ~$0.02 per review (varies with diff size)
@@ -75,7 +75,7 @@ Typical cost:    ~$0.02 per review (varies with diff size)
 ```
 Detected: codex-plugin-cc installed.
 This plugin works the same way. Differences:
-  - Model: GPT-5 (Copilot's default) vs Codex's o-series
+  - Model: gpt-5.3-codex @ high effort (Copilot's default) vs Codex's o-series
   - Delegation defaults to read-only (--write opt-in for edits)
   - Sub-agent self-review pattern is built-in
   - Auth: uses your Copilot CLI license
@@ -141,7 +141,7 @@ Applied:
   - <item 2> (<file/path>)
 
 Reference:
-  - Model:    GPT-5 (~$0.02/review, varies with diff size)
+  - Model:    gpt-5.3-codex @ high effort (~$0.02/review, varies with diff size)
   - Manual:   /copilot:review
   - Disable:  /plugin disable github-copilot (via Claude Code)
   - Findings: printed to terminal (pipe with --json for scripts)
