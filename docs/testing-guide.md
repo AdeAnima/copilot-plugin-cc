@@ -163,9 +163,9 @@ These require an active Claude Code session with the plugin loaded.
 
 ---
 
-## Part 3.5: Guide Command (`/copilot:guide`)
+## Part 3.5: Setup Command — Onboarding / Migration / Audit (`/copilot:setup`)
 
-Tests for the interactive onboarding/migration/audit command.
+Tests for the unified setup command. `/copilot:guide` has been folded into `/copilot:setup` — the `guide --json` subcommand is still the internal profile builder, but the user-facing command is `/copilot:setup [--onboard|--migrate|--audit|--status-only]`.
 
 ### Script-level (CLI)
 
@@ -182,18 +182,13 @@ Tests for the interactive onboarding/migration/audit command.
 
 | # | Test | Method | Expected |
 |---|------|--------|----------|
-| GU.7 | Invoke via Skill tool | Skill(`copilot:guide`) | Runs interactive flow, routes to correct mode |
-| GU.8 | Forced onboarding override | Skill(`copilot:guide`, "--onboarding") | Runs onboarding flow even if audit signals present |
-| GU.9 | Dry-run before write | During any mode, when asked to write a file | Diff shown, confirm required before write |
-| GU.10 | Read-only CLAUDE.md fallback | With a read-only or `# Managed by` CLAUDE.md | Offers `CLAUDE.local.md` / cheatsheet fallback, does not attempt write |
-| GU.11 | Final summary present | At end of every flow | Summary lists applied changes + model + manual command + disable command + findings location |
-
-### Setup integration
-
-| # | Test | Method | Expected |
-|---|------|--------|----------|
-| GU.12 | Setup offers guide | After `/copilot:setup` on a fresh install | AskUserQuestion prompt offers `/copilot:guide` |
-| GU.13 | Setup skips guide offer for returning users | After `/copilot:setup` with gate ON or jobs > 0 | No guide offer shown |
+| GU.7 | Invoke via Skill tool | Skill(`copilot:setup`) | Auto-routes to onboarding / migration / status-recap based on profile |
+| GU.8 | Forced onboarding | Skill(`copilot:setup`, "--onboard") | Runs onboarding flow even if audit signals present |
+| GU.9 | Forced audit | Skill(`copilot:setup`, "--audit") | Renders diagnostics dashboard |
+| GU.10 | Dry-run before write | During any mode, when asked to write a file | Diff shown, confirm required before write |
+| GU.11 | Read-only CLAUDE.md fallback | With a read-only or `# Managed by` CLAUDE.md | Offers `CLAUDE.local.md` / cheatsheet fallback, does not attempt write |
+| GU.12 | Final summary present | At end of migration or audit | Summary lists applied changes + model + manual command + disable command + findings location |
+| GU.13 | Status recap for returning users | `/copilot:setup` with gate ON or jobs > 0 | Compact status block, no onboarding flow |
 
 ---
 

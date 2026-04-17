@@ -1,6 +1,6 @@
 ---
-description: Set up or check the Copilot plugin — conversational onboarding on first run, quiet status on re-runs
-argument-hint: '[--enable-review-gate|--disable-review-gate] [--status-only]'
+description: Set up, migrate, audit, or check the Copilot plugin — auto-routes by detected state, with explicit flags to force a mode
+argument-hint: '[--enable-review-gate|--disable-review-gate] [--status-only|--onboard|--migrate|--audit]'
 allowed-tools: Read, Edit, Write, Bash(node:*), Bash(npm:*), Bash(git:*), AskUserQuestion
 ---
 
@@ -30,12 +30,18 @@ Run:
 node "${CLAUDE_PLUGIN_ROOT}/scripts/copilot-companion.mjs" guide --json
 ```
 
-Parse the JSON. Use `profile.recommendedMode` to decide what to do next:
+Parse the JSON. Explicit flags in `$ARGUMENTS` override auto-routing:
 
-- If `$ARGUMENTS` contains `--status-only`: skip onboarding/migration, print a short status recap (gate state, model default, recent activity if any), then stop.
-- If `recommendedMode === "onboarding"`: run **Onboarding** below inline.
-- If `recommendedMode === "migration"`: point the user at `/copilot:guide --migration` for the codex → copilot migration walkthrough. Don't run migration inline from `/copilot:setup`.
-- If `recommendedMode === "audit"`: print a short status recap (same as `--status-only`) and suggest `/copilot:guide --audit` if they want the full diagnostics dashboard.
+- `--status-only` → **Status recap** section, then stop.
+- `--onboard` → **Onboarding** section.
+- `--migrate` → **Migration** section.
+- `--audit` → **Audit** section.
+
+If no flag is given, auto-route on `profile.recommendedMode`:
+
+- `"onboarding"` → **Onboarding** section.
+- `"migration"` → **Migration** section.
+- `"audit"` → **Status recap** section, and in the final line offer: "Run `/copilot:setup --audit` for the full diagnostics dashboard."
 
 ## Onboarding (inline)
 
@@ -125,10 +131,96 @@ Copilot plugin: ready
   Gate:      [ON/OFF]
   CLAUDE.md: [mentions Copilot / does not mention / not writable]
   Activity:  <N> reviews in the last 30 days (from jobSummary)
-  More:      /copilot:guide --audit for full diagnostics, /copilot:review to run a review now
+  More:      /copilot:setup --audit for full diagnostics, /copilot:review to run a review now
 ```
 
 If the repo has staged changes, offer "Want to try it on your current staged changes?" at the end — runs `/copilot:review --scope staged` via the Skill tool.
+
+## Migration (inline)
+
+Runs when `codex-plugin-cc` is detected or the user passes `--migrate`.
+
+1. Show the differences block:
+
+```
+Detected: codex-plugin-cc installed.
+This plugin works the same way. Differences:
+  - Model: gpt-5.3-codex @ high effort (default) vs Codex's o-series
+  - Delegation defaults to read-only (--write opt-in for edits)
+  - Sub-agent self-review pattern is built-in
+  - Auth: uses your Copilot CLI license
+```
+
+2. Verify auth from the setup JSON already parsed in Step 1. Append: `Auth: verified ✓` or `Auth: ⚠ not authenticated — run !copilot login first`.
+
+3. Ask one question with quick-pick options:
+> How do you want to proceed?
+> a) Apply equivalent setup (Recommended)
+> b) Customize — drop me into onboarding instead
+> c) Show me the full mapping first (dry-run, no writes)
+> d) Something else
+
+4. If `c`, print the proposed changes (model bindings, default flags, CLAUDE.md snippet diff) without writing. Then re-ask `a/b/d`.
+
+5. If `a`, back up codex config to `.copilot/codex-backup-<ISO-timestamp>.json`. Apply equivalent settings one by one with individual `y/N/edit` consent. Always include `--restore-codex` in the final summary so the user can roll back.
+
+6. If `b`, jump to the Onboarding section.
+
+7. End with the final summary template (bottom of this file) + "Try it now?" prompt.
+
+## Audit (inline)
+
+Runs when the user passes `--audit`.
+
+1. The profile JSON from Step 2 already includes `jobSummary` (last 30 days). If you also need current runtime status, run:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/copilot-companion.mjs" status --json
+```
+
+2. Render a diagnostics dashboard with five sections:
+
+   - **Active Config** — current gate state, CLAUDE.md mentions, hooks installed, diff threshold (from profile + status).
+   - **Recent Activity** — totals from `jobSummary`: reviews run (`jobSummary.byKind.review ?? 0`), adversarial (`jobSummary.byKind.adversarial ?? 0`), rescue/task (`jobSummary.byKind.task ?? 0`), total jobs (`jobSummary.totalJobs`), avg duration in seconds (`jobSummary.avgDurationMs / 1000`).
+   - **Drift Detected** — one entry per detected drift, each with a "Why flagged" line citing evidence:
+     - Has GitHub Actions but no Copilot CI integration (evidence: `profile.ciConfig.githubActions === true` and no Copilot step detected in workflows).
+     - CLAUDE.md missing commands added after the file's last modification date (skip if undetermined).
+   - **Unused Capabilities** — one entry per unused feature with "Why flagged":
+     - `/copilot:adversarial-review` if `(jobSummary.byKind.adversarial ?? 0) === 0`.
+     - Rescue/task delegation if `(jobSummary.byKind.task ?? 0) === 0`.
+     - Sub-agent self-review if `profile.claudeConfig.mentionsSubagents === true` but sub-agent review pattern not found in CLAUDE.md.
+   - **Tuning Opportunities** — data-driven nudges from `profile.repo.recentCommits`:
+     - If `changesetMedianLines > 0` and current diff threshold significantly exceeds `p95Lines`, suggest a lower threshold, citing both numbers.
+
+3. Ask one question with the tunings as quick-pick options (only include items flagged above):
+> Apply any tuning?
+> a) <first pickable item>
+> b) <second pickable item>
+> c) Skip — I just wanted the dashboard
+> d) Something else
+
+4. For each picked item: dry-run diff → `y/N/edit` → apply. One at a time.
+
+5. End with the final summary template + log location (`$CLAUDE_PLUGIN_DATA/state/<workspace>/jobs/` or system tmpdir fallback) + optional "Schedule next audit in 30 days?" reminder (we don't have scheduling — just surface the suggestion).
+
+## Final summary template (Migration and Audit)
+
+```
+## Setup Complete
+
+Applied:
+  - <item 1> (<file/path>)
+  - <item 2> (<file/path>)
+
+Reference:
+  - Model:    gpt-5.3-codex @ high effort (~$0.02/review, varies with diff size)
+  - Manual:   /copilot:review
+  - Disable:  /plugin disable github-copilot (via Claude Code)
+  - Findings: printed to terminal (pipe with --json for scripts)
+  - Logs:     $CLAUDE_PLUGIN_DATA/state/<workspace>/jobs/ (or system tmpdir if env var not set)
+
+Next: want to run /copilot:review on your current staged changes? [y/N]
+```
 
 ## Universal Rules
 
