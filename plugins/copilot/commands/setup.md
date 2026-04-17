@@ -53,21 +53,24 @@ Between questions, react to the previous answer in one short sentence — don't 
 
 **Q1 — Familiarity.**
 > How familiar are you with this plugin?
-> a) New to it — give me the short version
-> b) Read the README, haven't used it yet
-> c) I've run `/copilot:review` before
+> a) New to it — give me the short version first
+> b) I know it — just set it up the way I want
+> c) I've used it, but show me what else is possible
 > d) Something else
 
 If `a`: give a one-paragraph plain-language explainer (Copilot reviews code using a different model family than Claude, so you get a genuinely independent second opinion; you trigger it with `/copilot:review`; findings print to the terminal). Then continue to Q2.
 
-**Q2 — Primary use case.**
-> How do you picture using it?
-> a) Manual second opinion before I ship
-> b) Automatic on every commit / Claude stop
-> c) Occasional deep adversarial pass
-> d) Something else
+If `c`: before Q2, list in 3 short bullets the ways people use it (one line per Q2 option, plain language) so they know what's on the menu. Then continue to Q2.
 
-Their pick narrows which hooks and settings to suggest later — remember it.
+If `b`: jump straight to Q3. Skip the scenario framing — they already know.
+
+**Q2 — Primary use case.** Frame each option as a concrete scenario, not a label. Start with: *"There are a few common ways to use this. Which fits best?"* — then:
+> a) **One-off sanity check.** You finish a change, run `/copilot:review` yourself before pushing, and read the findings. Nothing auto-runs.
+> b) **Safety net on every commit or Claude stop.** A hook triggers a Copilot review automatically, so you catch issues without remembering.
+> c) **Deep adversarial pass on important changes.** For risky refactors or tricky PRs, you run `/copilot:adversarial-review` — a harder pass that challenges the approach, not just the code.
+> d) Something else (mix of the above, or not sure)
+
+If `d` and they say "mix" or pick more than one, treat it as `a + b` (or `a + c`) and set up both — it's a fine answer. Remember the pick for hook suggestions later.
 
 **Q3 — Model.**
 > Which model should reviews use by default?
